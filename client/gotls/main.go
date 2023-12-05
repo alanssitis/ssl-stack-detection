@@ -45,6 +45,8 @@ func main() {
         ServerName: "127.0.0.1",
         RootCAs: cert_pool,
     }
+
+	start := time.Now()
 	tlsConn := tls.UClient(dialConn, config, tls.HelloCustom)
     defer tlsConn.Close()
 
@@ -55,8 +57,6 @@ func main() {
 			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 		},
     })
-
-	start := time.Now()
 	err = tlsConn.Handshake()
     if err != nil {
         log.Fatalf("tlsConn.Handshake() failed: %+v\n", err)
