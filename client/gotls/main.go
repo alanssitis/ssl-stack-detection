@@ -1,18 +1,29 @@
 package main
 
 import (
+	"crypto/x509"
 	"log"
+	"os"
 
-    tls "github.com/refraction-networking/utls"
+	tls "github.com/refraction-networking/utls"
 )
 
 func main() {
-    conf := &tls.Config{
-        Certificates: []tls.Certificate{},
-        CipherSuites: []uint16{tls.TLS_AES_128_GCM_SHA256},
+    dat, err := os.ReadFile("../../go_server/server.crt")
+    if err != nil {
+        log.Println(err)
+        return
     }
 
-    conn, err := tls.Dial("tcp", "172.20.0.1:4443", conf)
+    cert_pool := x509.NewCertPool()
+    cert_pool.AppendCertsFromPEM(dat)
+
+    conf := &tls.Config{
+        CipherSuites: []uint16{tls.TLS_AES_128_GCM_SHA256},
+        RootCAs: cert_pool,
+    }
+
+    conn, err := tls.Dial("tcp", "127.0.0.1:443", conf)
     if err != nil {
         log.Fatalln(err)
     }
