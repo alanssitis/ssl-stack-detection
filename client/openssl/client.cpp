@@ -2,13 +2,13 @@
 #include <cstring>
 
 #include <iostream>
-#include <openssl/prov_ssl.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <netdb.h>
 #include <openssl/err.h>
+#include <openssl/prov_ssl.h>
 #include <openssl/ssl.h>
 #include <resolv.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 // Valid TLS v1.2 cipher suites
@@ -66,7 +66,9 @@
 // TLS_AES_128_CCM_8_SHA256
 
 int OpenConnection(const char *hostname, const char *port) {
-  struct addrinfo hints{0}, *addrs;
+  struct addrinfo hints {
+    0
+  }, *addrs;
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = IPPROTO_TCP;
@@ -100,7 +102,12 @@ int OpenConnection(const char *hostname, const char *port) {
   return sfd;
 }
 
-int main() {
+int main(const int argc, const char *argv[]) {
+  if (argc < 3) {
+    std::cerr << "not enough args: <ip> <chain>" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
   SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());
   if (ctx == nullptr) {
     ERR_print_errors_fp(stderr);
@@ -115,27 +122,38 @@ int main() {
   */
 
   // TLS 1.3
+  /*
   SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
   SSL_CTX_set_ciphersuites(ctx, "TLS_AES_256_GCM_SHA384");
+  */
 
-  SSL_CTX_load_verify_locations(ctx, "server.crt", "../../go_server/");
+  if (!SSL_CTX_load_verify_locations(ctx, argv[2], NULL)) {
+    std::cerr << "Failed to load server chain" << std::endl;
+    SSL_CTX_free(ctx);
+    exit(EXIT_FAILURE);
+  }
 
   SSL *ssl = SSL_new(ctx);
   if (ssl == nullptr) {
     std::cerr << "SSL_new() failed" << std::endl;
+    SSL_CTX_free(ctx);
     exit(EXIT_FAILURE);
   }
   SSL_set_connect_state(ssl);
 
-  const int sfd = OpenConnection("127.0.0.1", "443");
+  const int sfd = OpenConnection(argv[1], "443");
   SSL_set_fd(ssl, sfd);
 
   const int status = SSL_do_handshake(ssl);
   if (status != 1) {
     SSL_get_error(ssl, status);
     ERR_print_errors_fp(stderr);
-    std::cerr << "SSL_connect failed with SSL_get_error code " << status << std::endl;
+    std::cerr << "SSL_connect failed with SSL_get_error code " << status
+              << std::endl;
+    SSL_free(ssl);
+    close(sfd);
+    SSL_CTX_free(ctx);
     exit(EXIT_FAILURE);
   }
 

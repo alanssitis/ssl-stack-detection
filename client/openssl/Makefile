@@ -1,8 +1,8 @@
 client: client.cpp
-	g++ -Wall -o $@ client.cpp -lssl -lcrypto
+	g++ -Wall -g -o $@ client.cpp -lssl -lcrypto
 
 run: client
-	./$<
+	./$< ${IP} ${CHAIN}
 
 fmt:
 	clang-format -i client.cpp
