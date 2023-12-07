@@ -1,12 +1,12 @@
 use std::io::{BufReader, Write};
 use std::net::TcpStream;
 use std::sync::Arc;
+use std::time;
 
-use rustls::{client, RootCertStore};
+use rustls::RootCertStore;
 
 fn get_root_store(path: &String) -> RootCertStore {
-    let mut reader =
-        BufReader::new(std::fs::File::open(path).expect("cannot open cert"));
+    let mut reader = BufReader::new(std::fs::File::open(path).unwrap());
 
     let mut root_store = RootCertStore::empty();
     root_store.add_parsable_certificates(
@@ -16,30 +16,40 @@ fn get_root_store(path: &String) -> RootCertStore {
     root_store
 }
 
-fn one_time_handshake(
-    address: &String,
-    conn: &mut client::ClientConnection,
-) -> std::time::Duration {
-    let start = std::time::Instant::now();
-    let mut sock = TcpStream::connect(address).unwrap();
-    let mut stream = rustls::Stream::new(conn, &mut sock);
-    stream.flush().unwrap();
-    start.elapsed()
+fn make_config(
+    cert_path: &String,
+    ciphersuite: &rustls::SupportedCipherSuite,
+) -> rustls::ClientConfig {
+    rustls::ClientConfig::builder()
+        .with_cipher_suites(&[*ciphersuite])
+        .with_kx_groups(&rustls::ALL_KX_GROUPS)
+        .with_protocol_versions(&rustls::ALL_VERSIONS)
+        .unwrap()
+        .with_root_certificates(get_root_store(cert_path))
+        .with_no_client_auth()
 }
 
-fn time_handshake(
-    address: &String,
-    conn: &mut client::ClientConnection,
-    count: u32,
-) -> std::time::Duration {
-    let mut duration = std::time::Duration::ZERO;
+fn bench_handshake(
+    cert_path: &String,
+    ciphersuite: &rustls::SupportedCipherSuite,
+    ip: &String,
+    rounds: u32,
+) -> time::Duration {
+    let cfg = Arc::new(make_config(cert_path, ciphersuite));
+    let mut duration = time::Duration::ZERO;
 
-    for _ in 0..count {
-        duration += one_time_handshake(address, conn);
-        std::thread::sleep(std::time::Duration::from_millis(1));
+    for _ in 0..rounds {
+        let sn = rustls::client::ServerName::try_from(ip.as_str()).unwrap();
+        let mut conn = rustls::ClientConnection::new(cfg.clone(), sn).unwrap();
+        let mut sock = TcpStream::connect(format!("{ip}:443")).unwrap();
+
+        let start = time::Instant::now();
+        let mut stream = rustls::Stream::new(&mut conn, &mut sock);
+        stream.flush().unwrap();
+        duration += start.elapsed();
     }
 
-    duration / count
+    duration / rounds
 }
 
 fn main() {
@@ -48,12 +58,7 @@ fn main() {
         panic!("not enough args: <ip> <cert> <iter>")
     }
 
-    let root_store = get_root_store(&args[2]);
-    let ip = &args[1];
-    let server_name =
-        rustls::client::ServerName::try_from(ip.as_str()).unwrap();
-
-    for cs in &[
+    for ciphersuite in &[
         rustls::cipher_suite::TLS13_AES_128_GCM_SHA256,
         rustls::cipher_suite::TLS13_AES_256_GCM_SHA384,
         rustls::cipher_suite::TLS13_CHACHA20_POLY1305_SHA256,
@@ -61,27 +66,13 @@ fn main() {
         rustls::cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
         rustls::cipher_suite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
     ] {
-        println!("Ciphersuite: {:?}", cs.suite());
-
-        let config = rustls::ClientConfig::builder()
-            .with_cipher_suites(&[*cs])
-            .with_kx_groups(&rustls::ALL_KX_GROUPS)
-            .with_protocol_versions(&rustls::ALL_VERSIONS)
-            .unwrap()
-            .with_root_certificates(root_store.clone())
-            .with_no_client_auth();
-
-        let mut conn = rustls::ClientConnection::new(
-            Arc::new(config),
-            server_name.clone(),
-        )
-        .unwrap();
-
+        println!("Ciphersuite: {:?}", ciphersuite.suite());
         println!(
             "Average time taken: {:?}",
-            time_handshake(
-                &format!("{ip}:443"),
-                &mut conn,
+            bench_handshake(
+                &args[2],
+                ciphersuite,
+                &args[1],
                 args[3].parse().unwrap()
             )
         );
