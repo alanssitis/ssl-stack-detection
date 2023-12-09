@@ -1,6 +1,7 @@
 IP?=127.0.0.1
-CHAIN_ABS=$(shell readlink -f $${CHAIN})
+CHAIN ?= certs/ca.cert
 ITER ?= 1
+CHAIN_ABS=$(shell readlink -f ${CHAIN})
 
 run-server-go:
 	${MAKE} -C go_server run
