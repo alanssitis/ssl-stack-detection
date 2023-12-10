@@ -19,3 +19,6 @@ run-client-rs-22:
 
 run-client-open-320:
 	IP=${IP} CHAIN=${CHAIN_ABS} ${MAKE} -C client/openssl/3.2.0 run
+
+run-client-open-311:
+	IP=${IP} CHAIN=${CHAIN_ABS} ${MAKE} -C client/openssl/3.1.1 run

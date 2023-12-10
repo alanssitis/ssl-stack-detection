@@ -1,6 +1,6 @@
 [submodule "client/openssl/3.2.0/openssl"]
 	path = client/openssl/3.2.0/openssl
 	url = git@github.com:openssl/openssl.git
-[submodule "client/openssl/3.1.0/openssl"]
-	path = client/openssl/3.1.0/openssl
+[submodule "client/openssl/3.1.1/openssl"]
+	path = client/openssl/3.1.1/openssl
 	url = git@github.com:openssl/openssl.git
