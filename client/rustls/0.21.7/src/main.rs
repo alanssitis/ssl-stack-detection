@@ -34,7 +34,7 @@ fn bench_handshake(
     ciphersuite: &rustls::SupportedCipherSuite,
     ip: &String,
     rounds: u32,
-) -> time::Duration {
+) -> f32 {
     let cfg = Arc::new(make_config(cert_path, ciphersuite));
     let mut duration = time::Duration::ZERO;
 
@@ -49,15 +49,16 @@ fn bench_handshake(
         duration += start.elapsed();
     }
 
-    duration / rounds
+    rounds as f32 / duration.as_secs_f32()
 }
 
 fn main() {
     let args = std::env::args().collect::<Vec<String>>();
-    if args.len() < 4 {
-        panic!("not enough args: <ip> <cert> <iter>")
+    if args.len() < 3 {
+        panic!("not enough args: <ip> <cert>")
     }
 
+    println!("ciphersuite,handshakes/s");
     for ciphersuite in &[
         rustls::cipher_suite::TLS13_AES_128_GCM_SHA256,
         rustls::cipher_suite::TLS13_AES_256_GCM_SHA384,
@@ -66,14 +67,17 @@ fn main() {
         rustls::cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
         rustls::cipher_suite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
     ] {
-        println!("Ciphersuite: {:?}", ciphersuite.suite());
         println!(
-            "Average time taken: {:?}",
+            "{:?},{}",
+            ciphersuite.suite(),
             bench_handshake(
                 &args[2],
                 ciphersuite,
                 &args[1],
-                args[3].parse().unwrap()
+                512 * std::env::var("BENCH_MULTIPLIER")
+                    .unwrap_or("1".to_string())
+                    .parse::<u32>()
+                    .unwrap()
             )
         );
     }

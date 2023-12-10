@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/x509"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -11,10 +12,10 @@ import (
 	tls "github.com/refraction-networking/utls"
 )
 
-func time_handshake(ip string, c uint16, cp *x509.CertPool, round int64, version uint16) time.Duration {
+func time_handshake(ip string, c uint16, cp *x509.CertPool, round int, version uint16) float64 {
 	duration := time.Duration(0)
 
-	for i := int64(0); i < round; i++ {
+	for i := 0; i < round; i++ {
 		dialConn, err := net.Dial("tcp", ip+":443")
 		if err != nil {
 			log.Fatalf("net.Dial() failed: %+v\n", err)
@@ -116,12 +117,12 @@ func time_handshake(ip string, c uint16, cp *x509.CertPool, round int64, version
 		}
 	}
 
-	return time.Duration(int64(duration) / round)
+	return float64(round) / duration.Seconds()
 }
 
 func main() {
-	if len(os.Args) < 4 {
-		log.Fatalln("not enough args: <ip> <cert> <iter>")
+	if len(os.Args) < 3 {
+		log.Fatalln("not enough args: <ip> <cert>")
 	}
 
 	ip := os.Args[1]
@@ -135,11 +136,12 @@ func main() {
 	cert_pool := x509.NewCertPool()
 	cert_pool.AppendCertsFromPEM(dat)
 
-	rounds, err := strconv.ParseInt(os.Args[3], 10, 64)
-	if err != nil {
-		log.Printf("Read int failed: %T", err)
-		return
+	rounds := 512
+	if smt, err := strconv.Atoi(os.Getenv("BENCH_MULTIPLIER")); err == nil {
+		rounds = rounds * smt
 	}
+
+	fmt.Println("ciphersuite,handshakes/s")
 
 	for _, c := range []uint16{
 		// TLS 1.3
@@ -147,8 +149,7 @@ func main() {
 		tls.TLS_AES_256_GCM_SHA384,
 		tls.TLS_CHACHA20_POLY1305_SHA256,
 	} {
-		log.Printf("Ciphersuite: %s\n", tls.CipherSuiteName(c))
-		log.Printf("Handshake took %s\n", time_handshake(ip, c, cert_pool, rounds, tls.VersionTLS13))
+		fmt.Printf("%s,%f\n", tls.CipherSuiteName(c), time_handshake(ip, c, cert_pool, rounds, tls.VersionTLS13))
 	}
 	for _, c := range []uint16{
 		// TLS 1.2
@@ -168,7 +169,6 @@ func main() {
 		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 	} {
-		log.Printf("Ciphersuite: %s\n", tls.CipherSuiteName(c))
-		log.Printf("Handshake took %s\n", time_handshake(ip, c, cert_pool, rounds, tls.VersionTLS12))
+		fmt.Printf("%s,%f\n", tls.CipherSuiteName(c), time_handshake(ip, c, cert_pool, rounds, tls.VersionTLS12))
 	}
 }
