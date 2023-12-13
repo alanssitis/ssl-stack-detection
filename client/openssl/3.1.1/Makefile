@@ -1,14 +1,17 @@
 IP ?= 127.0.0.1
 
-CXXFLAGS+=-Wall -Werror -O3
+OPENSSL_VERSION=3.1.1
+IMG_NAME=openssl-client-3-1-1
 
-CPPFLAGS+=-I./openssl/include
-LDFLAGS+=-L./openssl
-LDLIBS+=-lssl -lcrypto -ldl -lpthread
-ENV=env LD_LIBRARY_PATH=../openssl
-MEMUSAGE=/usr/bin/time -f %M
+client: client.Dockerfile client.cpp client.Makefile | openssl-img
+	docker build -t ${IMG_NAME} -f $< .
+	docker container create --name temp ${IMG_NAME}
+	docker container cp temp:/build/client ./
+	docker container rm temp
 
-client: client.cpp
+openssl-img: openssl.Dockerfile
+	make -C ../ubuntu-latest
+	docker build -t openssl:${OPENSSL_VERSION} -f $< .
 
 run: client
 	./$< ${IP} ${CHAIN}

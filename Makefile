@@ -17,6 +17,12 @@ run-client-rs-21:
 run-client-rs-22:
 	IP=${IP} CHAIN=${CHAIN_ABS} ${MAKE} -C client/rustls/0.22.0 run
 
+run-client-open-102:
+	IP=${IP} CHAIN=${CHAIN_ABS} ${MAKE} -C client/openssl/1.0.2 run
+
+run-client-open-111:
+	IP=${IP} CHAIN=${CHAIN_ABS} ${MAKE} -C client/openssl/1.1.1 run
+
 run-client-open-320:
 	IP=${IP} CHAIN=${CHAIN_ABS} ${MAKE} -C client/openssl/3.2.0 run
 
