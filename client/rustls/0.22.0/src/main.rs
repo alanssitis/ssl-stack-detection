@@ -41,24 +41,31 @@ fn bench_handshake(
     cert_path: &String,
     ciphersuite: &rustls::SupportedCipherSuite,
     ip: &String,
-    rounds: u32,
 ) -> f32 {
     let cfg = Arc::new(make_config(cert_path, ciphersuite));
-    let mut duration = std::time::Duration::ZERO;
 
-    for _ in 0..rounds {
-        let sn = rustls_pki_types::ServerName::try_from(ip.clone()).unwrap();
-        let mut conn = rustls::ClientConnection::new(cfg.clone(), sn).unwrap();
-        let mut sock = TcpStream::connect(format!("{ip}:443")).unwrap();
+    let sn = rustls_pki_types::ServerName::try_from(ip.clone()).unwrap();
+    let mut conn = rustls::ClientConnection::new(cfg.clone(), sn).unwrap();
+    let mut sock = TcpStream::connect(format!("{ip}:443")).unwrap();
 
-        let start = time::Instant::now();
-        let mut stream = rustls::Stream::new(&mut conn, &mut sock);
-        stream.flush().unwrap();
-        duration += start.elapsed();
-    }
-
-    rounds as f32 / duration.as_secs_f32()
+    let start = time::Instant::now();
+    let mut stream = rustls::Stream::new(&mut conn, &mut sock);
+    stream.flush().unwrap();
+    start.elapsed().as_secs_f32()
 }
+
+static CIPHERSUITES: [rustls::SupportedCipherSuite; 6] = {
+    use rustls::crypto::ring::cipher_suite;
+
+    [
+        cipher_suite::TLS13_AES_128_GCM_SHA256,
+        cipher_suite::TLS13_AES_256_GCM_SHA384,
+        cipher_suite::TLS13_CHACHA20_POLY1305_SHA256,
+        cipher_suite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+        cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+        cipher_suite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+    ]
+};
 
 fn main() {
     let args = std::env::args().collect::<Vec<String>>();
@@ -66,31 +73,22 @@ fn main() {
         panic!("not enough args: <ip> <cert>")
     }
 
-    println!("ciphersuite,handshakes/s");
-    {
-        use rustls::crypto::ring::cipher_suite;
+    let points = std::env::var("POINTS")
+        .unwrap_or("1".to_string())
+        .parse::<u32>()
+        .unwrap();
 
-        for ciphersuite in &[
-            cipher_suite::TLS13_AES_128_GCM_SHA256,
-            cipher_suite::TLS13_AES_256_GCM_SHA384,
-            cipher_suite::TLS13_CHACHA20_POLY1305_SHA256,
-            cipher_suite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-            cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-            cipher_suite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-        ] {
-            println!(
-                "{:?},{}",
-                ciphersuite.suite(),
-                bench_handshake(
-                    &args[2],
-                    ciphersuite,
-                    &args[1],
-                    512 * std::env::var("BENCH_MULTIPLIER")
-                        .unwrap_or("1".to_string())
-                        .parse::<u32>()
-                        .unwrap()
-                )
-            );
+    print!("idx");
+    for ciphersuite in &CIPHERSUITES {
+        print!(",{:?}", ciphersuite.suite());
+    }
+    print!("\n");
+
+    for i in 0..points {
+        print!("{i}");
+        for ciphersuite in &CIPHERSUITES {
+            print!(",{:.}", bench_handshake(&args[2], ciphersuite, &args[1]));
         }
+        print!("\n");
     }
 }

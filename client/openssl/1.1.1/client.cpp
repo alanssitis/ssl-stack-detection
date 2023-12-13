@@ -113,48 +113,38 @@ public:
     }
   }
 
-  int handshake() { 
-    return SSL_get_error(m_ssl, SSL_do_handshake(m_ssl)); 
-  }
+  int handshake() { return SSL_get_error(m_ssl, SSL_do_handshake(m_ssl)); }
 };
 
-static size_t apply_work_multiplier(size_t work) {
-  const char *multiplier = getenv("BENCH_MULTIPLIER");
-  if (multiplier) {
-    return size_t(work * atof(multiplier));
+static int get_points_number() {
+  const char *points = getenv("POINTS");
+  if (points) {
+    return atof(points);
   }
-  return work;
+  return 1;
 }
 
 static double test_handshake(Context &client_ctx) {
-  double time_client = 0;
+  Conn client(client_ctx.open());
 
-  const size_t handshakes = apply_work_multiplier(512);
+  client.set_client();
+  client.set_sni("localhost");
 
-  for (size_t i = 0; i < handshakes; i++) {
-    Conn client(client_ctx.open());
+  auto start = std::chrono::high_resolution_clock::now();
+  auto ret = client.handshake();
+  auto end = std::chrono::high_resolution_clock::now();
 
-    client.set_client();
-    client.set_sni("localhost");
-
-    auto start = std::chrono::high_resolution_clock::now();
-    auto ret = client.handshake();
-    auto end = std::chrono::high_resolution_clock::now();
-
-    time_client += std::chrono::duration<double>(end - start).count();
-
-    if (ret != SSL_ERROR_NONE) {
-      ERR_print_errors_fp(stderr);
-      return -1;
-    }
-
-    if (!client.accept()) {
-      ERR_print_errors_fp(stderr);
-      return -1;
-    }
+  if (ret != SSL_ERROR_NONE) {
+    ERR_print_errors_fp(stderr);
+    return -1;
   }
 
-  return double(handshakes) / time_client;
+  if (!client.accept()) {
+    ERR_print_errors_fp(stderr);
+    return -1;
+  }
+
+  return std::chrono::duration<double>(end - start).count();
 }
 
 static int usage() {
@@ -169,27 +159,36 @@ int main(int argc, char **argv) {
   SSL_library_init();
 
   std::array<std::string, 10> ciphersuites{
-    // Valid TLS v1.3 cipher suites
-    "TLS_AES_128_GCM_SHA256",
-    "TLS_AES_256_GCM_SHA384",
-    "TLS_CHACHA20_POLY1305_SHA256",
+      // Valid TLS v1.3 cipher suites
+      "TLS_AES_128_GCM_SHA256",
+      "TLS_AES_256_GCM_SHA384",
+      "TLS_CHACHA20_POLY1305_SHA256",
 
-    // Valid TLS v1.2 cipher suites
-    "AES128-SHA256",
-    "AES128-GCM-SHA256",
-    "AES256-GCM-SHA384",
-    "ECDHE-RSA-AES128-SHA256",
-    "ECDHE-RSA-AES128-GCM-SHA256",
-    "ECDHE-RSA-AES256-GCM-SHA384",
-    "ECDHE-RSA-CHACHA20-POLY1305",
+      // Valid TLS v1.2 cipher suites
+      "AES128-SHA256",
+      "AES128-GCM-SHA256",
+      "AES256-GCM-SHA384",
+      "ECDHE-RSA-AES128-SHA256",
+      "ECDHE-RSA-AES128-GCM-SHA256",
+      "ECDHE-RSA-AES256-GCM-SHA384",
+      "ECDHE-RSA-CHACHA20-POLY1305",
   };
 
-  std::cout << "ciphersuite,handshakes/s" << std::endl;
+  std::cout << "idx";
   for (auto &cs : ciphersuites) {
-    Context client_ctx = Context::client();
-    client_ctx.load_client_creds(argv[2]);
-    client_ctx.set_ciphers(cs);
-    std::cout << cs << "," << test_handshake(client_ctx) << std::endl;
+    std::cout << "," << cs;
+  }
+  std::cout << std::endl;
+
+  for (auto i = 0; i < get_points_number(); i++) {
+    std::cout << i;
+    for (auto &cs : ciphersuites) {
+      Context client_ctx = Context::client();
+      client_ctx.load_client_creds(argv[2]);
+      client_ctx.set_ciphers(cs);
+      std::cout << "," << test_handshake(client_ctx);
+    }
+    std::cout << std::endl;
   }
 
   return 0;
