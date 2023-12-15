@@ -1,0 +1,35 @@
+KNN K = 100 and no keysize
+Model Accuracy on Test Set for go: 0.20322222222222222
+Model Accuracy on Test Set for openssl_1_0_2: 0.6573333333333333
+Model Accuracy on Test Set for openssl_1_1_1: 0.3816
+Model Accuracy on Test Set for openssl_3_1_1: 0.3397
+Model Accuracy on Test Set for openssl_3_2_0: 0.34675
+Model Accuracy on Test Set for rustls_0_21_7: 0.38433333333333336
+Model Accuracy on Test Set for rustls_0_22_0: 0.37833333333333335
+
+KNN K = 100 and keysize
+Model Accuracy on Test Set for go: 0.07775
+Model Accuracy on Test Set for openssl_1_0_2: 0.402
+Model Accuracy on Test Set for openssl_1_1_1: 0.25645
+Model Accuracy on Test Set for openssl_3_1_1: 0.19935
+Model Accuracy on Test Set for openssl_3_2_0: 0.21535
+Model Accuracy on Test Set for rustls_0_21_7: 0.22333333333333333
+Model Accuracy on Test Set for rustls_0_22_0: 0.22975
+
+Random Forest and no keysize
+Model Accuracy on Test Set for go: 0.13361111111111112
+Model Accuracy on Test Set for openssl_1_0_2: 0.57675
+Model Accuracy on Test Set for openssl_1_1_1: 0.286
+Model Accuracy on Test Set for openssl_3_1_1: 0.25245
+Model Accuracy on Test Set for openssl_3_2_0: 0.26415
+Model Accuracy on Test Set for rustls_0_21_7: 0.29341666666666666
+Model Accuracy on Test Set for rustls_0_22_0: 0.3045
+
+Random Forest and keysize
+Model Accuracy on Test Set for go: 0.06833333333333333
+Model Accuracy on Test Set for openssl_1_0_2: 0.3690833333333333
+Model Accuracy on Test Set for openssl_1_1_1: 0.1961
+Model Accuracy on Test Set for openssl_3_1_1: 0.1647
+Model Accuracy on Test Set for openssl_3_2_0: 0.17825
+Model Accuracy on Test Set for rustls_0_21_7: 0.18608333333333332
+Model Accuracy on Test Set for rustls_0_22_0: 0.19225
